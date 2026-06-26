@@ -103,7 +103,7 @@ class SerialOutlet(Outlet):
             print(f"Serial port {self.serial.port} closed.")
 
     def send(self, data):
-        print(f"sending {data}")
+        print(f"serialsending {data}")
         self.serial.write(data)
 
     def stop(self):
@@ -122,6 +122,7 @@ class TCPClientOutlet(Outlet):
 
     def send(self, data):
         # Send data over TCP connection here
+        print(f"tcp send {data}")
         self.sock.sendall(data)
 
     def disconnect(self):
