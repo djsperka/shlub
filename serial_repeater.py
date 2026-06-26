@@ -2,11 +2,11 @@ import socket
 from serial import Serial
 from threading import Thread, Event
 from queue import Queue
-from time import sleep
+from time import sleep as sleep
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 class Outlet(Thread):
-    def __init__(self, connect_event:Event , name:str='Unnamed Outlet'):
+    def __init__(self, name:str, **kwargs):
         """Base class for repeater outlets (places where repeater input is sent)
 
         Args:
@@ -14,17 +14,17 @@ class Outlet(Thread):
             name (str, optional): _description_. Defaults to 'Unnamed Outlet'.
         """
         super().__init__()
-        self.event = connect_event
+        self.connect_event = kwargs.pop('connect_event')
+        self.stop_event = kwargs.pop('stop_event')
         self.name = name
         self.mailbox = Queue()
         self.connected = False
-        self.stop_requested = False
 
     def run(self):
 
         # Wait until connect event is set
         print(f"Outlet {self.name} waiting to connect...")
-        while not self.event.is_set():
+        while not self.connect_event.is_set():
             sleep(0.1)
 
         # Now try to connect
@@ -35,9 +35,12 @@ class Outlet(Thread):
             self.connected = True
 
         # Now loop until stop is requested
-        while not self.stop_requested:            
-            data = self.mailbox.get()
-            self.send(data)
+        while not self.stop_event.is_set(): 
+            if not self.mailbox.empty():
+                data = self.mailbox.get()
+                self.send(data)
+            else:
+                sleep(0.1)
         self.disconnect()
 
     def connect(self) -> bool:
@@ -74,8 +77,8 @@ class Outlet(Thread):
         raise NotImplementedError("send method not implemented")
 
 class SerialOutlet(Outlet):
-    def __init__(self, event:Event, port:str, baudrate:int=9600):
-        super().__init__(event, f"SerialOutlet({port})")
+    def __init__(self, port:str, baudrate:int=9600, **kwargs):
+        super().__init__(f"SerialOutlet({port})", **kwargs)
         self.serial = Serial()
         self.serial.port = port
         self.serial.baudrate = baudrate
@@ -95,21 +98,20 @@ class SerialOutlet(Outlet):
     
     def disconnect(self):
         if self.serial.is_open:
+            print(f"Closing serial port: {self.serial.port}")
             self.serial.close()
-        return
+            print(f"Serial port {self.serial.port} closed.")
 
     def send(self, data):
         print(f"sending {data}")
         self.serial.write(data)
 
     def stop(self):
-        print(f"Closing serial port: {self.serial.port}")
         self.serial.close()
-        print(f"Serial port {self.serial.port} closed successfully.")
-
+    
 class TCPClientOutlet(Outlet):
-    def __init__(self, event: Event, host: str, port: int):
-        super().__init__(event, f"TCPClientOutlet({host}:{port})")
+    def __init__(self, host: str, port: int, **kwargs):
+        super().__init__(f"TCPClientOutlet({host}:{port})", **kwargs)
         self.host = host
         self.port = port
 
@@ -122,9 +124,12 @@ class TCPClientOutlet(Outlet):
         # Send data over TCP connection here
         self.sock.sendall(data)
 
-    def stop(self):
+    def disconnect(self):
         # Close TCP connection here
+        print(f"Closing tcp port: {self.host}:{self.port}")
         self.sock.close()
+        print(f"Closing tcp port: {self.host}:{self.port} - done")
+        
 
     def send_and_receive_command(self, command: str, expected_response: str) -> bool:
         self.send(command.encode())
@@ -143,8 +148,8 @@ class SerialRepeater(Thread):
         self.baudrate = baudrate
         self.timeout = timeout
         self.serial = None
-        self.start_event = Event()
-        self.stop_requested = False
+        self.connect_event = Event()
+        self.stop_event = Event()
         self.outlets = []
 
     def add_outlet(self, outletstring: str):
@@ -161,9 +166,9 @@ class SerialRepeater(Thread):
         l = astring.split(",")
         if len(l) > 0:
             if l[0].lower() == "serial" and len(l)==2:
-                self.outlets.append(SerialOutlet(self.start_event, l[1]))
+                self.outlets.append(SerialOutlet(l[1], connect_event=self.connect_event, stop_event=self.stop_event))
             elif l[0].lower() == "tcp" and len(l)==3:
-                self.outlets.append(TCPClientOutlet(self.start_event, l[1], int(l[2])))
+                self.outlets.append(TCPClientOutlet(l[1], int(l[2]), connect_event=self.connect_event, stop_event=self.stop_event))
             else:
                 raise ValueError(f"Cannot open outlet with argument {astring}")
 
@@ -174,9 +179,9 @@ class SerialRepeater(Thread):
         # start all outlets
         for outlet in self.outlets:
             outlet.start()
-        self.start_event.set()
+        self.connect_event.set()
 
-        while not self.stop_requested:
+        while not self.stop_event.is_set():
             try:
                 data = self.serial.read_until(b';')
                 if not data:
@@ -190,22 +195,23 @@ class SerialRepeater(Thread):
                     if message == b'disconnect;':
                         print("Received disconnect command. Stopping repeater.")
                         self.stop()
-                        return
-                    for outlet in self.outlets:
-                        outlet.send(message)
+                    else:
+                        for outlet in self.outlets:
+                            outlet.send(message)
                     del buffer[:terminator_index + 1]
             except Exception as e:
                 print(f"Error occurred: {e}, {e.__class__.__name__}")
                 break
+        for outlet in self.outlets:
+            outlet.join()
+
 
     def stop(self):
         if self.serial is not None:
             print(f"Closing serial port: {self.serial.port}")
             self.serial.close()
             print(f"Serial port {self.serial.port} closed successfully.")
-        for outlet in self.outlets:
-            outlet.stop()
-        self.stop_event = True
+        self.stop_event.set()
 
 
 if __name__ == "__main__":
