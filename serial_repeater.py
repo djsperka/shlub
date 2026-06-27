@@ -28,11 +28,13 @@ class Outlet(Thread):
             sleep(0.1)
 
         # Now try to connect
-        if not self.connect():
-            raise RuntimeError("Cannot connect")
-        else:
+        try:
+            self.connect()
             print(f"Outlet {self.name} connected.")
             self.connected = True
+        except Exception as e:
+            print(f"Outlet connection for {self.name} failed: {e}.")
+            return
 
         # Now loop until stop is requested
         while not self.stop_event.is_set(): 
@@ -41,20 +43,19 @@ class Outlet(Thread):
                 self.send(data)
             else:
                 sleep(0.1)
+        print(f"Thread {self.name} DISCONNNECTing")
         self.disconnect()
+        print(f"Thread {self.name} ending")
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect this outlet to its destination
 
         Raises:
             NotImplementedError: Subclasses must implement this
 
-        Returns:
-            bool: True if connection is successful        
         """
 
         raise NotImplementedError("send method not implemented")
-        return False
 
     def disconnect(self):
         """Disconnect this outlet from its destination
@@ -86,16 +87,12 @@ class SerialOutlet(Outlet):
     def connect(self):
         """Open serial port
 
-        Returns:
-            bool: True if connection successful
         """
-        try:
-            self.serial.open()
-        except Exception as e:
-            print(f"Error occurred: {e}, {e.__class__.__name__}")
+        print(f"connect serial open? {self.serial.is_open}")
+        self.serial.close()
+        self.serial.open()
         print(f"Outlet {self.name} opened.")
-        return self.serial.is_open
-    
+   
     def disconnect(self):
         if self.serial.is_open:
             print(f"Closing serial port: {self.serial.port}")
@@ -115,10 +112,11 @@ class TCPClientOutlet(Outlet):
         self.host = host
         self.port = port
 
-    def connect(self) ->bool:
+    def connect(self):
         # Initialize TCP connection here
         self.sock = socket.create_connection((self.host, self.port), timeout=1)
-        return self.send_and_receive_command("HELLO;", "OK;")
+        if not self.send_and_receive_command("HELLO;", "OK;"):
+            raise RuntimeError('HELLO/OK handshake failed.')
 
     def send(self, data):
         # Send data over TCP connection here
@@ -131,16 +129,14 @@ class TCPClientOutlet(Outlet):
         self.sock.close()
         print(f"Closing tcp port: {self.host}:{self.port} - done")
         
-
     def send_and_receive_command(self, command: str, expected_response: str) -> bool:
         self.send(command.encode())
         response = self.sock.recv(1024).decode().strip()
-        print(f"Sent: {command!r} -> Received: {response!r}")
+        print(f"Handshake for {self.name}: {command!r} -> Received: {response!r}")
         if response != expected_response:
             print(f"Unexpected response: {response!r}, expected: {expected_response!r}")
             return False
         return True
-
 
 class SerialRepeater(Thread):
     def __init__(self, port, baudrate=9600, timeout=1):
@@ -152,6 +148,7 @@ class SerialRepeater(Thread):
         self.connect_event = Event()
         self.stop_event = Event()
         self.outlets = []
+        self.running = False
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -173,6 +170,22 @@ class SerialRepeater(Thread):
             else:
                 raise ValueError(f"Cannot open outlet with argument {astring}")
 
+    def connect_all(self) -> bool:
+        # set connection event
+        self.connect_event.set()
+
+        # now wait a couple of seconds for outlets to connect
+        waitcount = 0
+        waitready = False
+        while waitcount<10 and not waitready:
+            waitready = True
+            for outlet in self.outlets:
+                if not outlet.connected:
+                    waitready = False
+            sleep(0.1)
+            waitcount += 1
+        return waitready
+
     def run(self):
         self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
         buffer = bytearray()
@@ -180,29 +193,35 @@ class SerialRepeater(Thread):
         # start all outlets
         for outlet in self.outlets:
             outlet.start()
-        self.connect_event.set()
 
-        while not self.stop_event.is_set():
-            try:
-                data = self.serial.read_until(b';')
-                if not data:
-                    continue
+        # connect outlets to their destinations
+        if self.connect_all():
+            self.running = True    
+            while not self.stop_event.is_set():
+                try:
+                    data = self.serial.read_until(b';')
+                    if not data:
+                        continue
 
-                buffer.extend(data)
-                while b';' in buffer:
-                    terminator_index = buffer.index(b';')
-                    message = bytes(buffer[:terminator_index + 1])
-                    print(f"Received: {message!r}")
-                    if message == b'disconnect;':
-                        print("Received disconnect command. Stopping repeater.")
-                        self.stop()
-                    else:
-                        for outlet in self.outlets:
-                            outlet.send(message)
-                    del buffer[:terminator_index + 1]
-            except Exception as e:
-                print(f"Error occurred: {e}, {e.__class__.__name__}")
-                break
+                    buffer.extend(data)
+                    while b';' in buffer:
+                        terminator_index = buffer.index(b';')
+                        message = bytes(buffer[:terminator_index + 1])
+                        print(f"Received: {message!r}")
+                        if message == b'disconnect;':
+                            print("Received disconnect command. Stopping repeater.")
+                            self.stop()
+                        else:
+                            for outlet in self.outlets:
+                                outlet.send(message)
+                        del buffer[:terminator_index + 1]
+                except Exception as e:
+                    print(f"Error occurred: {e}, {e.__class__.__name__}")
+                    break
+        else:
+            # stop any outlet threads that were opened
+            self.stop_event.set()
+
         for outlet in self.outlets:
             outlet.join()
 
@@ -213,6 +232,7 @@ class SerialRepeater(Thread):
             self.serial.close()
             print(f"Serial port {self.serial.port} closed successfully.")
         self.stop_event.set()
+        self.running = False
 
 
 if __name__ == "__main__":
@@ -224,15 +244,30 @@ if __name__ == "__main__":
 
     print(f"port {args.port}")
     print(f"outlets: {len(args.outlet)}")
+    repeater = SerialRepeater(port=args.port, baudrate=args.baudrate)
 
     try:
-        repeater = SerialRepeater(port=args.port, baudrate=args.baudrate)
         for astring in args.outlet:
             repeater.add_outlet(astring)
         repeater.start()    # this starts the repeater thread, which will start each of the outlet threads
-        repeater.join()
     except Exception as e:
         print(f"Error occurred: {e}, {e.__class__.__name__}")
+        exit()
+
+    sleep(2)
+    
+    print("starting loop")
+    try:
+        while repeater.running:
+            sleep(.1)
+    except KeyboardInterrupt:
+        print("caught keyboard interrupt.")
+        repeater.stop()
+
+    print("loop done - join repeater")
+    repeater.join()
+
+
 
     # # try:
     # # except KeyboardInterrupt:
@@ -247,3 +282,5 @@ if __name__ == "__main__":
     # print("outlet1.join() complete. releasing repeater_thread.")
     # repeater.join()
     # print("repeater_thread.join() complete. Exiting.")
+
+    # python serial_repeater.py --port COM7 --outlet serial,COM8 --outlet tcp,128.120.140.228,8282
