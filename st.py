@@ -33,7 +33,8 @@ def main():
     window = sg.Window('Window Title', layout, finalize=True, enable_close_attempted_event=True)
 
 
-    tray = SystemTray(menu, single_click_events=False, window=window, tooltip=tooltip, icon=sg.DEFAULT_BASE64_ICON)
+    #tray = SystemTray(menu, single_click_events=False, window=window, tooltip=tooltip, icon=sg.DEFAULT_BASE64_ICON)
+    tray = SystemTray(menu, single_click_events=False, window=window, tooltip=tooltip, icon="default_icon.ico")
     tray.show_message('System Tray', 'System Tray Icon Started!')
     sg.cprint(sg.get_versions())
     while True:
