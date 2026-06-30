@@ -29,7 +29,9 @@ class Outlet(Thread):
 
         # Now try to connect
         if not self.connect():
-            raise RuntimeError("Cannot connect")
+            self.connected = False
+            print(f"Outlet {self.name} could not be connected.")
+            return
         else:
             print(f"Outlet {self.name} connected.")
             self.connected = True
@@ -42,18 +44,15 @@ class Outlet(Thread):
             else:
                 sleep(0.1)
         self.disconnect()
+        print(f"Outlet {self.name} ending thread.")
 
     def connect(self) -> bool:
         """Connect this outlet to its destination
-
-        Raises:
-            NotImplementedError: Subclasses must implement this
+        Subclasses should NOT raise errors! Return False instead
 
         Returns:
             bool: True if connection is successful        
         """
-
-        raise NotImplementedError("send method not implemented")
         return False
 
     def disconnect(self):
@@ -83,7 +82,7 @@ class SerialOutlet(Outlet):
         self.serial.port = port
         self.serial.baudrate = baudrate
 
-    def connect(self):
+    def connect(self) -> bool:
         """Open serial port
 
         Returns:
@@ -92,15 +91,17 @@ class SerialOutlet(Outlet):
         try:
             self.serial.open()
         except Exception as e:
-            print(f"Error occurred: {e}, {e.__class__.__name__}")
+            print(f"Serial outlet cannot open: {e}, {e.__class__.__name__}")
+            return False
         print(f"Outlet {self.name} opened.")
-        return self.serial.is_open
+        return True
     
     def disconnect(self):
         if self.serial.is_open:
             print(f"Closing serial port: {self.serial.port}")
             self.serial.close()
             print(f"Serial port {self.serial.port} closed.")
+        self.connected = False
 
     def send(self, data):
         print(f"serialsending {data}")
@@ -117,8 +118,13 @@ class TCPClientOutlet(Outlet):
 
     def connect(self) ->bool:
         # Initialize TCP connection here
-        self.sock = socket.create_connection((self.host, self.port), timeout=1)
-        return self.send_and_receive_command("HELLO;", "OK;")
+        b = False
+        try:
+            self.sock = socket.create_connection((self.host, self.port), timeout=1)
+            b= self.send_and_receive_command("HELLO;", "OK;")
+        except Exception as e:
+            print(f"TCPClient cannot connect: {e}")
+        return b
 
     def send(self, data):
         # Send data over TCP connection here
@@ -130,6 +136,7 @@ class TCPClientOutlet(Outlet):
         print(f"Closing tcp port: {self.host}:{self.port}")
         self.sock.close()
         print(f"Closing tcp port: {self.host}:{self.port} - done")
+        self.connected = False
         
 
     def send_and_receive_command(self, command: str, expected_response: str) -> bool:

@@ -4,9 +4,13 @@ from time import sleep as sleep
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from outlet import Outlet, SerialOutlet, TCPClientOutlet
 from typing import List
+from enum import Enum
+
+A_WINK = 0.1    # Time to sleep
 
 class SerialRepeater(Thread):
-    def __init__(self, port, baudrate=9600, outlets:List[str] = [], timeout=1):
+
+    def __init__(self, port, baudrate=9600, outlets:List[str] = [], timeout=1, autoconnect = False):
         super().__init__()
         self.port:str = port
         self.baudrate:int = baudrate
@@ -15,7 +19,10 @@ class SerialRepeater(Thread):
         self.connect_event:Event|None = None
         self.stop_event:Event|None = None
         self.outlets:List[str] = outlets
+        self.autoconnect = autoconnect
         self._o:List[Outlet] = []
+        self.is_connected: bool = False
+        self.connect_requested = False
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -31,12 +38,26 @@ class SerialRepeater(Thread):
 
 
     def connect_all(self) -> bool:
+        """Create and connect all outlets
+
+        Raises:
+            ValueError: If an outlet string is misconfigured, this is raised.
+
+        Returns:
+            bool: True if all outlets created and connected successfully.
+        """
+
+        print("connect_all()")
+        if self.is_connected:
+            print("connect_all: already connected.")
+            return True
 
         # new events
         self.connect_event = Event()
         self.stop_event = Event()
 
-        # create outlet objects
+        # create outlet objects - these will NOT raise exceptions!
+        bFail = False
         for outletstring in self.outlets:
             print(f"Adding outlet with config: {outletstring}")
             l = outletstring.split(",")
@@ -50,7 +71,12 @@ class SerialRepeater(Thread):
                     o.start()
                     self._o.append(o)
                 else:
-                    raise ValueError(f"Cannot open outlet with argument {outletstring}")
+                    print(f"Cannot open outlet with argument {outletstring}")
+                    bFail = True
+
+        # Check that all threads started
+        if bFail or len(self.outlets)==0 or len(self._o)<len(self.outlets):
+            return False
 
         # set connection event - this starts outlet threads
         self.connect_event.set()
@@ -65,45 +91,69 @@ class SerialRepeater(Thread):
                     waitready = False
             sleep(0.1)
             waitcount += 1
+        if waitready:
+            self.is_connected = True
+        else:
+            self.connect_event = None
+            self.stop_event = None
         return waitready
 
     def run(self):
+        print("starting repeater...")
         self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
         buffer = bytearray()
+        self.running = True
 
-        # start all outlets
-        for outlet in self.outlets:
-            outlet.start()
+        if self.autoconnect:
+            print("autoconnecting...")
+            self.connect_all()
+            self.autoconnect = False    # only try this once
 
-        # connect outlets to their destinations
-        if self.connect_all():
-            self.running = True    
-            while not self.stop_event.is_set():
-                try:
-                    data = self.serial.read_until(b';')
-                    if not data:
-                        continue
+        while self.running:
 
-                    buffer.extend(data)
-                    while b';' in buffer:
-                        terminator_index = buffer.index(b';')
-                        message = bytes(buffer[:terminator_index + 1])
-                        print(f"Received: {message!r}")
-                        if message == b'disconnect;':
-                            print("Received disconnect command. Stopping repeater.")
+            if self.stop_event and self.stop_event.is_set():
+                break
+
+            try:
+                data = self.serial.read_until(b';')
+                if not data:
+                    continue
+
+                buffer.extend(data)
+                while b';' in buffer:
+                    terminator_index = buffer.index(b';')
+                    message = bytes(buffer[:terminator_index + 1])
+                    print(f"Received: {message!r}")
+
+                    # specioal case: connect
+                    if message == b'connect;':
+                        if not self.is_connected:
+                            self.is_connected = self.connect_all()
+                            print("CONNECT FAILED")
+                            for outlet in self._o:
+                                print(f"outlet {outlet.name} conn? {str(outlet.connected)}")
                             self.stop()
+                            break
                         else:
-                            for outlet in self.outlets:
-                                outlet.send(message)
-                        del buffer[:terminator_index + 1]
-                except Exception as e:
-                    print(f"Error occurred: {e}, {e.__class__.__name__}")
-                    break
-        else:
-            # stop any outlet threads that were opened
-            self.stop_event.set()
+                            print('already connected')
+                    elif message == b'disconnect;':
+                        print("Received disconnect command. Stopping repeater.")
+                        self.stop()
+                    else:
+                        for outlet in self._o:
+                            outlet.send(message)
+                    del buffer[:terminator_index + 1]
+            except Exception as e:
+                print(f"ERROR occurred: {e}, {e.__class__.__name__}")
+                break
 
-        for outlet in self.outlets:
+        # self.running was set to False or the stop event was set or connect failed
+        print("break...")
+        if self.stop_event and not self.stop_event.is_set():
+            print("break...set stop event")
+            self.stop_event.set()
+        for outlet in self._o:
+            print(f"break...join {outlet.name}")
             outlet.join()
 
 
@@ -112,7 +162,6 @@ class SerialRepeater(Thread):
             print(f"Closing serial port: {self.serial.port}")
             self.serial.close()
             print(f"Serial port {self.serial.port} closed successfully.")
-        self.stop_event.set()
         self.running = False
 
 
@@ -133,7 +182,7 @@ def main():
             repeater.add_outlet(astring)
         repeater.start()    # this starts the repeater thread, which will start each of the outlet threads
     except Exception as e:
-        print(f"Error occurred: {e}, {e.__class__.__name__}")
+        print(f"Main Error occurred: {e}, {e.__class__.__name__}")
         exit()
 
     sleep(2)
