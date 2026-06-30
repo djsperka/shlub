@@ -6,15 +6,16 @@ from outlet import Outlet, SerialOutlet, TCPClientOutlet
 from typing import List
 
 class SerialRepeater(Thread):
-    def __init__(self, port, baudrate=9600, timeout=1):
+    def __init__(self, port, baudrate=9600, outlets:List[str] = [], timeout=1):
         super().__init__()
         self.port:str = port
         self.baudrate:int = baudrate
         self.timeout:float = timeout
         self.serial:None|Serial = None
-        self.connect_event:Event = Event()
-        self.stop_event:Event = Event()
-        self.outlets:List[Outlet] = []
+        self.connect_event:Event|None = None
+        self.stop_event:Event|None = None
+        self.outlets:List[str] = outlets
+        self._o:List[Outlet] = []
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -26,18 +27,32 @@ class SerialRepeater(Thread):
         Args:
             outletstring (str): config string from command line
         """
-        print(f"Adding outlet with config: {outletstring}")
-        l = outletstring.split(",")
-        if len(l) > 0:
-            if l[0].lower() == "serial" and len(l)==2:
-                self.outlets.append(SerialOutlet(l[1], connect_event=self.connect_event, stop_event=self.stop_event))
-            elif l[0].lower() == "tcp" and len(l)==3:
-                self.outlets.append(TCPClientOutlet(l[1], int(l[2]), connect_event=self.connect_event, stop_event=self.stop_event))
-            else:
-                raise ValueError(f"Cannot open outlet with argument {outletstring}")
+        self.outlets.append(outletstring)
+
 
     def connect_all(self) -> bool:
-        # set connection event
+
+        # new events
+        self.connect_event = Event()
+        self.stop_event = Event()
+
+        # create outlet objects
+        for outletstring in self.outlets:
+            print(f"Adding outlet with config: {outletstring}")
+            l = outletstring.split(",")
+            if len(l) > 0:
+                if l[0].lower() == "serial" and len(l)==2:
+                    o = SerialOutlet(l[1], connect_event=self.connect_event, stop_event=self.stop_event)
+                    o.start()
+                    self._o.append(o)
+                elif l[0].lower() == "tcp" and len(l)==3:
+                    o = TCPClientOutlet(l[1], int(l[2]), connect_event=self.connect_event, stop_event=self.stop_event)
+                    o.start()
+                    self._o.append(o)
+                else:
+                    raise ValueError(f"Cannot open outlet with argument {outletstring}")
+
+        # set connection event - this starts outlet threads
         self.connect_event.set()
 
         # now wait a couple of seconds for outlets to connect
@@ -45,7 +60,7 @@ class SerialRepeater(Thread):
         waitready = False
         while waitcount<10 and not waitready:
             waitready = True
-            for outlet in self.outlets:
+            for outlet in self._o:
                 if not outlet.connected:
                     waitready = False
             sleep(0.1)
@@ -106,9 +121,11 @@ def main():
     parser.add_argument('--port', required=True, help='serial port to listen on')
     parser.add_argument('--baudrate', default=9600, type=int, help='baud rate for incoming port. Default=9600')
     parser.add_argument('--outlet', action='append', required=True, help='Specify serial/tcp e.g. serial,COM7 or tcp,host,port')
+    parser.add_argument('--gui', action='store_true', help='Get gui and systray too!')
     args = parser.parse_args()
     print(f"port {args.port}")
     print(f"outlets: {len(args.outlet)}")
+    print(f"gui? {str(args.gui)}")
     repeater = SerialRepeater(port=args.port, baudrate=args.baudrate)
 
     try:
