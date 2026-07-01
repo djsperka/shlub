@@ -91,7 +91,7 @@ class SerialOutlet(Outlet):
         try:
             self.serial.open()
         except Exception as e:
-            print(f"Serial outlet cannot open: {e}, {e.__class__.__name__}")
+            print(f"SerialOutlet error: {e}")
             return False
         print(f"Outlet {self.name} opened.")
         return True
