@@ -23,6 +23,7 @@ class SerialRepeater(Thread):
         self._o:List[Outlet] = []
         self.is_connected: bool = False
         self.connect_requested = False
+        self.running = False
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -175,11 +176,9 @@ def main():
     print(f"port {args.port}")
     print(f"outlets: {len(args.outlet)}")
     print(f"gui? {str(args.gui)}")
-    repeater = SerialRepeater(port=args.port, baudrate=args.baudrate)
+    repeater = SerialRepeater(port=args.port, baudrate=args.baudrate, outlets=args.outlet)
 
     try:
-        for astring in args.outlet:
-            repeater.add_outlet(astring)
         repeater.start()    # this starts the repeater thread, which will start each of the outlet threads
     except Exception as e:
         print(f"Main Error occurred: {e}, {e.__class__.__name__}")
