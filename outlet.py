@@ -3,11 +3,17 @@ from serial import Serial
 from threading import Thread, Event
 from queue import Queue
 from time import sleep as sleep
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Outlet(Thread):
     def __init__(self, name:str, **kwargs):
         """Base class for repeater outlets (places where repeater input is sent)
+        An outlet will run in its own thread. On startup it will wait on a 'connect_event'. When it is 
+        set, the connection is established, and the outlet will then wait on its own queue, repeating anything
+        it receives through its output connection. If the initial connection fails, the thread ends. The thread is 
+        stopped by setting the disconnect_event. 
 
         Args:
             connect_event (Event): Event that is set when this outlet should connect to its destination.
@@ -15,7 +21,7 @@ class Outlet(Thread):
         """
         super().__init__()
         self.connect_event:Event = kwargs.pop('connect_event')
-        self.stop_event:Event = kwargs.pop('stop_event')
+        self.disconnect_event:Event = kwargs.pop('disconnect_event')
         self.name = name
         self.mailbox = Queue()
         self.connected = False
@@ -23,28 +29,28 @@ class Outlet(Thread):
     def run(self):
 
         # Wait until connect event is set
-        print(f"Outlet {self.name} waiting to connect...")
+        logger.info(f"Outlet {self.name} waiting to connect...")
         while not self.connect_event.is_set():
             sleep(0.1)
 
         # Now try to connect
         if not self.connect():
             self.connected = False
-            print(f"Outlet {self.name} could not be connected.")
+            logger.warning(f"Outlet {self.name} could not be connected.")
             return
         else:
-            print(f"Outlet {self.name} connected.")
+            logger.info(f"Outlet {self.name} connected.")
             self.connected = True
 
-        # Now loop until stop is requested
-        while not self.stop_event.is_set(): 
+        # Now loop until disconnect is requested
+        while not self.disconnect_event.is_set(): 
             if not self.mailbox.empty():
                 data = self.mailbox.get()
                 self.send(data)
             else:
                 sleep(0.1)
         self.disconnect()
-        print(f"Outlet {self.name} ending thread.")
+        logger.info(f"Outlet {self.name} ending thread.")
 
     def connect(self) -> bool:
         """Connect this outlet to its destination
@@ -81,6 +87,7 @@ class SerialOutlet(Outlet):
         self.serial = Serial()
         self.serial.port = port
         self.serial.baudrate = baudrate
+        self.serial.timeout = 0
 
     def connect(self) -> bool:
         """Open serial port
@@ -91,20 +98,20 @@ class SerialOutlet(Outlet):
         try:
             self.serial.open()
         except Exception as e:
-            print(f"SerialOutlet error: {e}")
+            logger.error(f"SerialOutlet error: {e}")
             return False
-        print(f"Outlet {self.name} opened.")
+        logger.info(f"Outlet {self.name} opened.")
         return True
     
     def disconnect(self):
         if self.serial.is_open:
-            print(f"Closing serial port: {self.serial.port}")
+            logger.info(f"Closing serial port: {self.serial.port}")
             self.serial.close()
-            print(f"Serial port {self.serial.port} closed.")
+            logger.info(f"Serial port {self.serial.port} closed.")
         self.connected = False
 
     def send(self, data):
-        print(f"serialsending {data}")
+        logger.info(f"{self.name} sending {data}")
         self.serial.write(data)
 
     def stop(self):
@@ -115,35 +122,39 @@ class TCPClientOutlet(Outlet):
         super().__init__(f"TCPClientOutlet({host}:{port})", **kwargs)
         self.host = host
         self.port = port
+        self.sock = None
 
     def connect(self) ->bool:
         # Initialize TCP connection here
         b = False
         try:
             self.sock = socket.create_connection((self.host, self.port), timeout=1)
-            b= self.send_and_receive_command("HELLO;", "OK;")
+            if not self.send_and_receive_command("HELLO;", "OK;"):
+                self.disconnect()
+            else:
+                b = True
         except Exception as e:
-            print(f"TCPClient cannot connect: {e}")
+            logger.error(f"TCPClient cannot connect: {e}")
         return b
 
     def send(self, data):
         # Send data over TCP connection here
-        print(f"tcp send {data}")
+        logger.info(f"{self.name} sending {data}")
         self.sock.sendall(data)
 
     def disconnect(self):
         # Close TCP connection here
-        print(f"Closing tcp port: {self.host}:{self.port}")
+        logger.info(f"Closing tcp port: {self.host}:{self.port}")
         self.sock.close()
-        print(f"Closing tcp port: {self.host}:{self.port} - done")
+        logger.info(f"Closing tcp port: {self.host}:{self.port} - done")
         self.connected = False
         
 
     def send_and_receive_command(self, command: str, expected_response: str) -> bool:
         self.send(command.encode())
         response = self.sock.recv(1024).decode().strip()
-        print(f"Sent: {command!r} -> Received: {response!r}")
+        logger.info(f"Sent: {command!r} -> Received: {response!r}")
         if response != expected_response:
-            print(f"Unexpected response: {response!r}, expected: {expected_response!r}")
+            logger.error(f"Unexpected response: {response!r}, expected: {expected_response!r}")
             return False
         return True

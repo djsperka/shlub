@@ -6,26 +6,42 @@ from outlet import Outlet, SerialOutlet, TCPClientOutlet
 from typing import List
 from enum import Enum
 import traceback
-
+from serial_input_queue import SerialInputQueue
+import logging
 
 A_WINK = 0.1    # Time to sleep
+logger = logging.getLogger(__name__)
 
 class SerialRepeater(Thread):
+    """This class will accept input via a serial port, and send it out to any number of serial and/or tcp/ip ports.
+    It runs as a state machine, which can be in one of three states, NOT_CONNECTED, CONNECTING, CONNECT_FAIL, and CONNECTED.
 
-    def __init__(self, port, baudrate=9600, outlets:List[str] = [], timeout=1, autoconnect = False):
+    Args:
+        Thread (_type_): _description_
+    """ 
+
+    class States(Enum):
+        NOT_STARTED=1
+        NOT_CONNECTED=2
+        CONNECTING=3
+        CONNECT_FAIL=4
+        CONNECTED=5
+        DISCONNECTING=6
+        QUITTING=7
+        DONE=99
+
+    def __init__(self, port, baudrate=9600, outlets:List[str] = [], timeout=0, autoconnect = False):
         super().__init__()
         self.port:str = port
         self.baudrate:int = baudrate
         self.timeout:float = timeout
         self.serial:None|Serial = None
         self.connect_event:Event|None = None
-        self.stop_event:Event|None = None
+        self.disconnect_event:Event|None = None
         self.outlets:List[str] = outlets
         self.autoconnect = autoconnect
         self._o:List[Outlet] = []
-        self.is_connected: bool = False
-        self.connect_requested = False
-        self.running = False
+        self.state:SerialRepeater.States=SerialRepeater.States.NOT_STARTED  
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -49,138 +65,109 @@ class SerialRepeater(Thread):
         Returns:
             bool: True if all outlets created and connected successfully.
         """
-
-        print("connect_all()")
-        if self.is_connected:
-            print("connect_all: already connected.")
-            return True
+        logger.info("connect_all()")
 
         # new events
         self.connect_event = Event()
-        self.stop_event = Event()
+        self.disconnect_event = Event()
 
         bFail = False
         for outletstring in self.outlets:
-            print(f"Adding outlet with config: {outletstring}")
+            logger.info(f"Adding outlet with config: {outletstring}")
             l = outletstring.split(",")
             if len(l) > 0:
                 if l[0].lower() == "serial" and len(l)==2:
-                    o = SerialOutlet(l[1], connect_event=self.connect_event, stop_event=self.stop_event)
-                    o.start()
+                    o = SerialOutlet(l[1], connect_event=self.connect_event, disconnect_event=self.disconnect_event)
                     self._o.append(o)
                 elif l[0].lower() == "tcp" and len(l)==3:
-                    o = TCPClientOutlet(l[1], int(l[2]), connect_event=self.connect_event, stop_event=self.stop_event)
-                    o.start()
+                    o = TCPClientOutlet(l[1], int(l[2]), connect_event=self.connect_event, disconnect_event=self.disconnect_event)
                     self._o.append(o)
                 else:
-                    print(f"Cannot open outlet with argument {outletstring}")
+                    logger.warning(f"Cannot open outlet with argument {outletstring}")
                     bFail = True
 
-        # Check that all threads started. if not, stop then and bail.
-        if len(self._o)<len(self.outlets):
-            self.stop_event.set()
-            for o in self._o:
-                o.join()
+        # Check that all threads were created. If not, bail.
+        if bFail:
             return False
 
-        # set connection event - this starts outlet threads
+        # Now start each thread and set connect event
+        logger.info("Starting threads and setting connect event...")
+        for o in self._o:
+            o.start()
         self.connect_event.set()
 
-        # now wait a couple of seconds for outlets to connect (only tcp outlet might take time)
-        waitcount = 0
+        # If outlet could not be connected, the outlet thread should end. 
+        # Wait a couple of seconds for outlets to connect (only tcp outlet might take time)
+        sleep(1)
         waitready = True
-        while waitcount<10 and not waitready:
-            for outlet in self._o:
-                if not outlet.connected:
-                    print(f"({waitcount}) {outlet.name} not connected...")
-                    waitready = False
-                    break
-            sleep(0.1)
-            waitcount += 1
-        if waitready:
-            print("exited loop, True")
-            self.is_connected = True
-        else:
-            print("exited loop, False")
-            self.connect_event = None
-            self.stop_event = None
-        return waitready
+        for outlet in self._o:
+            logger.info(f"connect_all: {outlet.name} alive {str(outlet.is_alive())} connected {str(outlet.connected)}")
+            if not outlet.connected:
+                waitready = False
+        return waitready and len(self._o)==len(self.outlets)
 
     def run(self):
-        print("starting repeater...")
-        self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
-        buffer = bytearray()
-        self.running = True
+        try:
+            logger.info("starting repeater...")
+            self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
+        except Exception as e:
+            logger.error(f"Error connecting repeater port {self.port}: ")
+            traceback.print_exc()
+            return
 
-        if self.autoconnect:
-            print("autoconnecting...")
-            self.connect_all()
-            self.autoconnect = False    # only try this once
+        # Serial input is open. Start state machine here at state NOT_CONNECTED
+        self.state = SerialRepeater.States.NOT_CONNECTED
+        siq = SerialInputQueue(self.serial, expected=';')
+        while not self.state==SerialRepeater.States.DONE:
 
-        while self.running:
-
-            if self.stop_event and self.stop_event.is_set():
-                break
-
-            try:
-                if not self.serial.is_open:
-                    print("WARN ser closed")
-                data = self.serial.read_until(b';')
-                if not data:
-                    continue
-
-                buffer.extend(data)
-                while b';' in buffer:
-                    terminator_index = buffer.index(b';')
-                    message = bytes(buffer[:terminator_index + 1])
-                    print(f"Received: {message!r}")
-
-                    # specioal case: connect
-                    if message == b'connect;':
-                        if not self.is_connected:
-                            self.is_connected = self.connect_all()
-                            for outlet in self._o:
-                                print(f"outlet {outlet.name} conn? {str(outlet.connected)}")
-                            break
+            if self.state==SerialRepeater.States.NOT_CONNECTED:
+                while self.state==SerialRepeater.States.NOT_CONNECTED and siq.check():
+                    msg = siq.next()
+                    if msg.lower() == b'connect;':
+                        if self.connect_all():
+                            self.state = SerialRepeater.States.CONNECTED
+                            logger.info("connect_all connect success!")
                         else:
-                            print('already connected')
-                    elif message == b'disconnect;':
-                        print("Received disconnect command. Stopping repeater.")
-                        self.stop()
+                            self.state = SerialRepeater.States.CONNECT_FAIL
+                            logger.info("connect_all connect FAIL!")
+                    else:
+                        logger.info(f"SerialRepeater - expecting 'connect;', discarding input: {msg}")
+            elif self.state==SerialRepeater.States.CONNECT_FAIL:
+                # an attempt to connect failed. Stop any threads that started and clear out the contents of self._o
+                for o in self._o:
+                    logger.info(f"outlet {o.name} alive? {str(o.is_alive())} conn? {str(o.connected)}")
+                self.state = SerialRepeater.States.NOT_CONNECTED
+            elif self.state==SerialRepeater.States.CONNECTED:
+                if siq.check():
+                    msg = siq.next()
+                    if msg.lower() == b'disconnect;':
+                        logger.info("repeater: got disconnect; set disconnect event...")
+                        self.disconnect_event.set()
+                        self.state = SerialRepeater.States.DISCONNECTING
                     else:
                         for outlet in self._o:
-                            outlet.send(message)
-                    del buffer[:terminator_index + 1]
-            except Exception as e:
-                print(f"ERROR occurred: {e}, {e.__class__.__name__}")
-                traceback.print_exc()
-                break
-
-        print("SerialRepeater.run(): at break, configured outlets:")
-        for outlet in self.outlets:
-            print(f"Outlet {outlet}")
-        print("SerialRepeater.run(): at break, threads still running:")
-        for outlet in self._o:
-            print(f"Outlet {outlet.name} alive {str(outlet.is_alive())}")
-
-        if self.serial is not None:
-            print(f"Closing serial port: {self.serial.port}")
-            self.serial.close()
-            print(f"Serial port {self.serial.port} closed successfully.")
-
-        # self.running was set to False or the stop event was set or connect failed
-        print("break...")
-        if self.stop_event and not self.stop_event.is_set():
-            print("break...set stop event")
-            self.stop_event.set()
-        for outlet in self._o:
-            print(f"break...join {outlet.name}")
-            outlet.join()
+                            outlet.send(msg)
+            elif self.state in [SerialRepeater.States.DISCONNECTING, SerialRepeater.States.QUITTING]:
+                # we are waiting for each of the outlet threads to disconnect and finish
+                #logger.info("disconnecting")
+                for outlet in self._o:
+                    outlet.join()
+                if self.state==SerialRepeater.States.DISCONNECTING:
+                    self.state = SerialRepeater.States.NOT_CONNECTED
+                    logger.info("to NOT_CONNECTED")
+                else:
+                    self.state = SerialRepeater.States.DONE
+                    logger.info("to DONE")
+            else:
+                logger.error(f"Unknown state: {str(self.state)}")
+                self._state = SerialRepeater.States.DONE
+                        
 
 
     def stop(self):
-        self.running = False
-        self.is_connected = False
+        if self.disconnect_event:
+            self.disconnect_event.set()
+        self.state = SerialRepeater.States.QUITTING
 
 
 def main():
