@@ -37,21 +37,32 @@ def test_repeater_with_serial():
     sleep(1)
     assert(repeater.is_alive())
     assert(repeater.running)
+    assert(not repeater.is_connected)
 
     # CONNECT
     source.send(b"connect;")
     sleep(1)
+    assert(repeater.is_alive())
+    assert(repeater.running)
+    assert(repeater.is_connected)
+
+
+
     print("send whatever")
     source.send(b"whatever;")
     print("send disconnect")
     source.send(b"disconnect;")
     sleep(1)
+    assert(repeater.is_alive())
+    assert(repeater.running)
+    assert(not repeater.is_connected)
 
 
     repeater.stop()
     sleep(1)
     assert(not repeater.running)
     assert(not repeater.is_alive())
+    assert(not repeater.is_connected)
 
     repeater.join()
 
@@ -66,6 +77,7 @@ def test_repeater_with_bad_serial():
     assert(repeater.is_alive())
     assert(repeater.running)
     assert(not repeater.is_connected)
+
 
     repeater.stop()
     sleep(1)
