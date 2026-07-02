@@ -2,6 +2,7 @@ from outlet import Outlet, SerialOutlet, TCPClientOutlet
 from threading import Event, Thread
 from time import sleep as sleep
 import socket
+from serial import Serial
 
 # This is good/bad on linux, not in lab.
 GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"

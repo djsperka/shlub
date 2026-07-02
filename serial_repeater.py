@@ -5,6 +5,8 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from outlet import Outlet, SerialOutlet, TCPClientOutlet
 from typing import List
 from enum import Enum
+import traceback
+
 
 A_WINK = 0.1    # Time to sleep
 
@@ -57,7 +59,6 @@ class SerialRepeater(Thread):
         self.connect_event = Event()
         self.stop_event = Event()
 
-        # create outlet objects - these will NOT raise exceptions!
         bFail = False
         for outletstring in self.outlets:
             print(f"Adding outlet with config: {outletstring}")
@@ -75,26 +76,32 @@ class SerialRepeater(Thread):
                     print(f"Cannot open outlet with argument {outletstring}")
                     bFail = True
 
-        # Check that all threads started
-        if bFail or len(self.outlets)==0 or len(self._o)<len(self.outlets):
+        # Check that all threads started. if not, stop then and bail.
+        if len(self._o)<len(self.outlets):
+            self.stop_event.set()
+            for o in self._o:
+                o.join()
             return False
 
         # set connection event - this starts outlet threads
         self.connect_event.set()
 
-        # now wait a couple of seconds for outlets to connect
+        # now wait a couple of seconds for outlets to connect (only tcp outlet might take time)
         waitcount = 0
-        waitready = False
+        waitready = True
         while waitcount<10 and not waitready:
-            waitready = True
             for outlet in self._o:
                 if not outlet.connected:
+                    print(f"({waitcount}) {outlet.name} not connected...")
                     waitready = False
+                    break
             sleep(0.1)
             waitcount += 1
         if waitready:
+            print("exited loop, True")
             self.is_connected = True
         else:
+            print("exited loop, False")
             self.connect_event = None
             self.stop_event = None
         return waitready
@@ -116,6 +123,8 @@ class SerialRepeater(Thread):
                 break
 
             try:
+                if not self.serial.is_open:
+                    print("WARN ser closed")
                 data = self.serial.read_until(b';')
                 if not data:
                     continue
@@ -130,10 +139,8 @@ class SerialRepeater(Thread):
                     if message == b'connect;':
                         if not self.is_connected:
                             self.is_connected = self.connect_all()
-                            print("CONNECT FAILED")
                             for outlet in self._o:
                                 print(f"outlet {outlet.name} conn? {str(outlet.connected)}")
-                            self.stop()
                             break
                         else:
                             print('already connected')
@@ -146,7 +153,13 @@ class SerialRepeater(Thread):
                     del buffer[:terminator_index + 1]
             except Exception as e:
                 print(f"ERROR occurred: {e}, {e.__class__.__name__}")
+                traceback.print_exc()
                 break
+
+        if self.serial is not None:
+            print(f"Closing serial port: {self.serial.port}")
+            self.serial.close()
+            print(f"Serial port {self.serial.port} closed successfully.")
 
         # self.running was set to False or the stop event was set or connect failed
         print("break...")
@@ -159,11 +172,8 @@ class SerialRepeater(Thread):
 
 
     def stop(self):
-        if self.serial is not None:
-            print(f"Closing serial port: {self.serial.port}")
-            self.serial.close()
-            print(f"Serial port {self.serial.port} closed successfully.")
         self.running = False
+        self.is_connected = False
 
 
 def main():
