@@ -156,6 +156,13 @@ class SerialRepeater(Thread):
                 traceback.print_exc()
                 break
 
+        print("SerialRepeater.run(): at break, configured outlets:")
+        for outlet in self.outlets:
+            print(f"Outlet {outlet}")
+        print("SerialRepeater.run(): at break, threads still running:")
+        for outlet in self._o:
+            print(f"Outlet {outlet.name} alive {str(outlet.is_alive())}")
+
         if self.serial is not None:
             print(f"Closing serial port: {self.serial.port}")
             self.serial.close()
