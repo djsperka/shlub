@@ -142,6 +142,43 @@ def test_repeater_with_bad_tcp():
     # downstream_tcp.join()s
 
 
+def test_repeater_with_two_outlets():
+    outlets = [f"tcp,{TCP_HOST},{TCP_PORT}",f"serial,{PAIR2_IN}"]
+    source = RepeaterSource(PAIR1_IN)
+    downstream_tcp = SingleClientServer(host=TCP_HOST, port=TCP_PORT)
+    downstream_tcp.start()
+
+    repeater = SerialRepeater(PAIR1_OUT, outlets=outlets)
+    repeater.start()
+    sleep(1)
+    assert(repeater.state == SerialRepeater.States.NOT_CONNECTED)
+
+    # CONNECT
+    source.send(b'connect;')
+    sleep(2)
+    assert(repeater.state == SerialRepeater.States.CONNECTED)
+
+    print("send whatever")
+    source.send(b"whatever;")
+    print("send disconnect")
+    source.send(b"disconnect;")
+    sleep(2)
+    assert(repeater.state == SerialRepeater.States.NOT_CONNECTED)
+
+
+    repeater.stop()
+    sleep(1)
+    assert(repeater.state == SerialRepeater.States.DONE)
+
+    logger.info("repeater.join")
+    repeater.join()
+    downstream_tcp.stop()
+    logger.info("downstream join")
+    downstream_tcp.join()
+
+
+
+
 class RepeaterSource:
     def __init__(self, port):
         self.serial = Serial()
