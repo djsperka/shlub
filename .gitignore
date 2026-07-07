@@ -1,0 +1,5 @@
+*.pyc
+*.pytest_cache
+.vscode
+.python-version
+*.code-workspace
