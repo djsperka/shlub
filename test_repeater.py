@@ -107,6 +107,7 @@ def test_repeater_with_tcp():
     assert(repeater.state == SerialRepeater.States.DONE)
 
     repeater.join()
+    downstream_tcp.stop()
     downstream_tcp.join()
 
 def test_repeater_with_bad_tcp():
