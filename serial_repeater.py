@@ -110,6 +110,8 @@ class SerialRepeater(Thread):
         try:
             logger.info("starting repeater...")
             self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
+            self.serial.reset_input_buffer()
+            self.serial.reset_output_buffer()
         except Exception as e:
             logger.error(f"Error connecting repeater port {self.port}: ")
             traceback.print_exc()
