@@ -171,7 +171,7 @@ class SerialRepeater(Thread):
                         self.state = SerialRepeater.States.DISCONNECTING
                     else:
                         for outlet in self._o:
-                            outlet.send(msg)
+                            outlet.mailbox.put(msg)
             elif self.state in [SerialRepeater.States.DISCONNECTING, SerialRepeater.States.QUITTING]:
                 # we are waiting for each of the outlet threads to disconnect and finish
                 #logger.info("disconnecting")
