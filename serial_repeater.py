@@ -9,6 +9,7 @@ import traceback
 from serial_input_queue import SerialInputQueue
 import logging
 
+
 A_WINK = 0.1    # Time to sleep
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ class SerialRepeater(Thread):
         self.autoconnect = autoconnect
         self._o:List[Outlet] = []
         self.state:SerialRepeater.States=SerialRepeater.States.NOT_STARTED  
+
+    @property
+    def all_outlets_connected(self):
+        return self.state == SerialRepeater.States.CONNECTED
 
     def add_outlet(self, outletstring: str):
         """Add an outlet to the repeater using the config string.
@@ -107,8 +112,10 @@ class SerialRepeater(Thread):
         return waitready and len(self._o)==len(self.outlets)
 
     def run(self):
+        print("run()")
         try:
             logger.info("starting repeater...")
+            print("serial")
             self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
             self.serial.reset_input_buffer()
             self.serial.reset_output_buffer()
@@ -127,13 +134,29 @@ class SerialRepeater(Thread):
                     msg = siq.next()
                     if msg.lower() == b'connect;':
                         if self.connect_all():
-                            self.state = SerialRepeater.States.CONNECTED
-                            logger.info("connect_all connect success!")
+                            self.state = SerialRepeater.States.CONNECTING
+                            logger.info("connect_all started connections...")
                         else:
                             self.state = SerialRepeater.States.CONNECT_FAIL
                             logger.info("connect_all connect FAIL!")
                     else:
                         logger.info(f"SerialRepeater - expecting 'connect;', discarding input: {msg}")
+            elif self.state==SerialRepeater.States.CONNECTING:
+                # Source - https://stackoverflow.com/a/10666320
+                # Posted by Gareth Latty, modified by community. See post 'Timeline' for change history
+                # Retrieved 2026-07-16, License - CC BY-SA 4.0
+                if all(outlet.connected for outlet in self._o) and len(self._o) == len(self.outlets):
+                    logger.info("all outlets connected.")
+                    self.state = SerialRepeater.States.CONNECTED
+                else:
+                    # some are not connected. That means they failed - as the outlet should end
+                    # if connect() failed. Also assuming that connect() has been attempted. Now
+                    # that the thread/connection is made when the Outlet class is instantiated, 
+                    # we are assured that the attempt was made, and we aren't waiting for it to be
+                    # completed (it blocks/timeout)
+                    self.disconnect_all()
+                    self.state =SerialRepeater.States.DISCONNECTING
+
             elif self.state==SerialRepeater.States.CONNECT_FAIL:
                 # an attempt to connect failed. Stop any threads that started and clear out the contents of self._o
                 for o in self._o:
@@ -143,8 +166,8 @@ class SerialRepeater(Thread):
                 if siq.check():
                     msg = siq.next()
                     if msg.lower() == b'disconnect;':
-                        logger.info("repeater: got disconnect; set disconnect event...")
-                        self.disconnect_event.set()
+                        logger.info("repeater: disconnect; received, disconnecting...")
+                        self.disconnect_all()
                         self.state = SerialRepeater.States.DISCONNECTING
                     else:
                         for outlet in self._o:
@@ -165,6 +188,10 @@ class SerialRepeater(Thread):
                 self._state = SerialRepeater.States.DONE
                         
 
+    def disconnect_all(self):
+        if self.disconnect_event:
+            self.disconnect_event.set()
+
 
     def stop(self):
         if self.disconnect_event:
@@ -184,24 +211,27 @@ def main():
     print(f"gui? {str(args.gui)}")
     repeater = SerialRepeater(port=args.port, baudrate=args.baudrate, outlets=args.outlet)
 
-    try:
-        repeater.start()    # this starts the repeater thread, which will start each of the outlet threads
-    except Exception as e:
-        print(f"Main Error occurred: {e}, {e.__class__.__name__}")
-        exit()
 
-    sleep(2)
+    layout = [[sg.Button('Start'), sg.Button('Stop')]]
+    window = sg.Window('SHLUB', layout)
+    repeater_started = False
+    while True:
     
-    print("starting loop")
-    try:
-        while repeater.running:
-            sleep(.1)
-    except KeyboardInterrupt:
-        print("caught keyboard interrupt.")
-        repeater.stop()
+        event, values = window.read()
+    
+        if event in (sg.WIN_CLOSED, 'Cancel'):
+            break
+        elif event == 'Start': 
+            repeater.start()
+            repeater_started = True
+        elif event == 'Stop':
+            repeater.stop()
+    
+    window.close()
 
-    print("loop done - join repeater")
-    repeater.join()
+    if repeater_started:
+        print("loop done - join repeater")
+        repeater.join()
 
 
 

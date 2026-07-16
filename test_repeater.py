@@ -50,7 +50,7 @@ def test_repeater_with_serial():
     # CONNECT
     source.send(b'connect;')
     sleep(2)
-    assert(repeater.state == SerialRepeater.States.CONNECTED)
+    assert(repeater.all_outlets_connected)
 
     print("send whatever")
     source.send(b"whatever;")
@@ -76,7 +76,7 @@ def test_repeater_with_bad_serial():
     sleep(1)
     assert(repeater.state == SerialRepeater.States.NOT_CONNECTED)
 
-    # CONNECT
+    # CONNECT - shouldn't do anything
     source.send(b'connect;')
     sleep(2)
     assert(repeater.state == SerialRepeater.States.NOT_CONNECTED)
@@ -102,7 +102,7 @@ def test_repeater_with_tcp():
     # CONNECT
     source.send(b'connect;')
     sleep(2)
-    assert(repeater.state == SerialRepeater.States.CONNECTED)
+    assert(repeater.all_outlets_connected)
 
     print("send whatever")
     source.send(b"whatever;")

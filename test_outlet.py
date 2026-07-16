@@ -6,13 +6,20 @@ from serial import Serial
 
 import sys
 if sys.platform=="linux":
-    # This is good/bad on linux, not in lab.
     GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"
+    PAIR1_IN="/home/dan/mydev/ttyV0"
+    PAIR1_OUT="/home/dan/mydev/ttyV1"
+    PAIR2_IN="/home/dan/mydev/ttyV2"
+    PAIR2_OUT="/home/dan/mydev/ttyV3"
     BAD_SERIAL_PORT="COM6"
     TCP_HOST = "127.0.0.1"
     TCP_PORT = 9990
 elif sys.platform=="win32":
-    GOOD_SERIAL_PORT="COM6"
+    GOOD_SERIAL_PORT="COM7"
+    PAIR1_IN="COM6"
+    PAIR1_OUT="COM7"
+    PAIR2_IN="COM8"
+    PAIR2_OUT="COM9"
     BAD_SERIAL_PORT="COM99"
     TCP_HOST = "127.0.0.1"
     TCP_PORT = 9990
@@ -20,36 +27,34 @@ elif sys.platform=="win32":
 
 
 def test_good_serial():
-    connect_event = Event()
     disconnect_event = Event()
-    outlet = SerialOutlet(GOOD_SERIAL_PORT, connect_event=connect_event, disconnect_event=disconnect_event)
+    outlet = SerialOutlet(GOOD_SERIAL_PORT, disconnect_event=disconnect_event)
     outlet.start()
-    assert(outlet.is_alive())
-
-    connect_event.set()
     sleep(1)
     assert(outlet.is_alive())
+    assert(outlet.connected)
 
     disconnect_event.set()
     sleep(1)
     assert(not outlet.is_alive())
+    assert(not outlet.connected)
     outlet.join()
 
 
 def test_bad_serial():
-    connect_event = Event()
     disconnect_event = Event()
-    outlet = SerialOutlet(BAD_SERIAL_PORT, connect_event=connect_event, disconnect_event=disconnect_event)
+    outlet = SerialOutlet(BAD_SERIAL_PORT, disconnect_event=disconnect_event)
     outlet.start()
-    assert(outlet.is_alive())
-
-    connect_event.set()
     sleep(1)
+
+    # thread should end on failed connection
     assert(not outlet.is_alive())
+    assert(not outlet.connected)
 
     disconnect_event.set()
     sleep(1)
     assert(not outlet.is_alive())
+    assert(not outlet.connected)
     outlet.join()
 
 def test_good_tcp():
@@ -57,19 +62,17 @@ def test_good_tcp():
     host.start()
     assert(host.is_alive())
 
-    connect_event = Event()
     disconnect_event = Event()
-    outlet = TCPClientOutlet(TCP_HOST, TCP_PORT, connect_event=connect_event, disconnect_event=disconnect_event)
+    outlet = TCPClientOutlet(TCP_HOST, TCP_PORT, disconnect_event=disconnect_event)
     outlet.start()
-    assert(outlet.is_alive())
-
-    connect_event.set()
     sleep(1)
     assert(outlet.is_alive())
+    assert(outlet.connected)
 
     disconnect_event.set()
     sleep(1)
     assert(not outlet.is_alive())
+    assert(not outlet.connected)
 
     outlet.join()
     host.join()
@@ -80,10 +83,8 @@ def test_tcp_no_host():
     disconnect_event = Event()
     outlet = TCPClientOutlet(TCP_HOST, TCP_PORT, connect_event=connect_event, disconnect_event=disconnect_event)
     outlet.start()
-    assert(outlet.is_alive())
-
-    connect_event.set()
     sleep(3)
+    assert(not outlet.connected)
     assert(not outlet.is_alive())
 
     disconnect_event.set()
