@@ -106,6 +106,7 @@ def test_repeater_with_tcp():
 
     print("send whatever")
     source.send(b"whatever;")
+    sleep(1)
     print("send disconnect")
     source.send(b"disconnect;")
     sleep(2)
