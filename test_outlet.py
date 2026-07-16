@@ -4,12 +4,19 @@ from time import sleep as sleep
 import socket
 from serial import Serial
 
-# This is good/bad on linux, not in lab.
-GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"
-BAD_SERIAL_PORT="COM6"
+import sys
+if sys.platform=="linux":
+    # This is good/bad on linux, not in lab.
+    GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"
+    BAD_SERIAL_PORT="COM6"
+    TCP_HOST = "127.0.0.1"
+    TCP_PORT = 9990
+elif sys.platform=="win32":
+    GOOD_SERIAL_PORT="COM6"
+    BAD_SERIAL_PORT="COM99"
+    TCP_HOST = "127.0.0.1"
+    TCP_PORT = 9990
 
-TCP_HOST = "127.0.0.1"
-TCP_PORT = 9990
 
 
 def test_good_serial():
@@ -76,7 +83,7 @@ def test_tcp_no_host():
     assert(outlet.is_alive())
 
     connect_event.set()
-    sleep(1)
+    sleep(3)
     assert(not outlet.is_alive())
 
     disconnect_event.set()
