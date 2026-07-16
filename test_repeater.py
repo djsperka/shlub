@@ -7,17 +7,27 @@ from local_server import SingleClientServer
 
 logger = logging.getLogger(__name__)
 
-# This is good/bad on linux, not in lab.
-GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"
-ANOTHER_GOOD_SERIAL_PORT="/home/dan/mydev/ttyV1"
-PAIR1_IN="/home/dan/mydev/ttyV0"
-PAIR1_OUT="/home/dan/mydev/ttyV1"
-PAIR2_IN="/home/dan/mydev/ttyV2"
-PAIR2_OUT="/home/dan/mydev/ttyV3"
-BAD_SERIAL_PORT="COM6"
 
-TCP_HOST = "127.0.0.1"
-TCP_PORT = 9990
+import sys
+if sys.platform=="linux":
+    GOOD_SERIAL_PORT="/home/dan/mydev/ttyV0"
+    PAIR1_IN="/home/dan/mydev/ttyV0"
+    PAIR1_OUT="/home/dan/mydev/ttyV1"
+    PAIR2_IN="/home/dan/mydev/ttyV2"
+    PAIR2_OUT="/home/dan/mydev/ttyV3"
+    BAD_SERIAL_PORT="COM6"
+    TCP_HOST = "127.0.0.1"
+    TCP_PORT = 9990
+elif sys.platform=="win32":
+    GOOD_SERIAL_PORT="COM7"
+    PAIR1_IN="COM6"
+    PAIR1_OUT="COM7"
+    PAIR2_IN="COM8"
+    PAIR2_OUT="COM9"
+    BAD_SERIAL_PORT="COM99"
+    TCP_HOST = "127.0.0.1"
+    TCP_PORT = 9990
+
 
 def test_empty_repeater():
     repeater = SerialRepeater(GOOD_SERIAL_PORT)
@@ -163,7 +173,7 @@ def test_repeater_with_two_outlets():
     source.send(b"whatever;")
     print("send disconnect")
     source.send(b"disconnect;")
-    sleep(2)
+    sleep(5)
     assert(repeater.state == SerialRepeater.States.NOT_CONNECTED)
 
 
