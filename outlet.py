@@ -10,17 +10,16 @@ logger = logging.getLogger(__name__)
 class Outlet(Thread):
     def __init__(self, name:str, **kwargs):
         """Base class for repeater outlets (places where repeater input is sent)
-        An outlet will run in its own thread. On startup it will wait on a 'connect_event'. When it is 
-        set, the connection is established, and the outlet will then wait on its own queue, repeating anything
+        An outlet will run in its own thread. On startup it will try to connect. When
+        the connection is established, the outlet will then wait on its own queue, repeating anything
         it receives through its output connection. If the initial connection fails, the thread ends. The thread is 
-        stopped by setting the disconnect_event. 
+        stopped by setting the disconnect_event. The property 'connected' is set to False when thread ends. 
 
         Args:
             connect_event (Event): Event that is set when this outlet should connect to its destination.
             name (str, optional): _description_. Defaults to 'Unnamed Outlet'.
         """
         super().__init__()
-        self.connect_event:Event = kwargs.pop('connect_event')
         self.disconnect_event:Event = kwargs.pop('disconnect_event')
         self.name = name
         self.mailbox = Queue()
@@ -28,19 +27,13 @@ class Outlet(Thread):
 
     def run(self):
 
-        # Wait until connect event is set
-        logger.info(f"Outlet {self.name} waiting to connect...")
-        while not self.connect_event.is_set():
-            sleep(0.1)
-
-        # Now try to connect
-        if not self.connect():
-            self.connected = False
+        logger.info(f"Starting outlet: {self.name} {self.connected}")
+        self.connect()
+        if self.connected:
+            logger.info(f"Outlet {self.name} connected. {self.connected}")
+        else:
             logger.warning(f"Outlet {self.name} could not be connected.")
             return
-        else:
-            logger.info(f"Outlet {self.name} connected.")
-            self.connected = True
 
         # Now loop until disconnect is requested
         while not self.disconnect_event.is_set(): 
@@ -96,6 +89,7 @@ class SerialOutlet(Outlet):
             bool: True if connection successful
         """
         try:
+            logger.info(str(type(self.serial)))
             self.serial.open()
             self.serial.reset_input_buffer()
             self.serial.reset_output_buffer()
@@ -104,6 +98,7 @@ class SerialOutlet(Outlet):
             logger.error(f"SerialOutlet error: {e}")
             return False
         logger.info(f"Outlet {self.name} opened.")
+        self.connected = True
         return True
     
     def disconnect(self):
@@ -111,7 +106,7 @@ class SerialOutlet(Outlet):
             logger.info(f"Closing serial port: {self.serial.port}")
             self.serial.close()
             logger.info(f"Serial port {self.serial.port} closed.")
-        self.connected = False
+            self.connected = False
 
     def send(self, data):
         logger.info(f"{self.name} sending {data}")
@@ -130,16 +125,18 @@ class TCPClientOutlet(Outlet):
 
     def connect(self) ->bool:
         # Initialize TCP connection here
-        b = False
-        try:
-            self.sock = socket.create_connection((self.host, self.port), timeout=1)
-            if not self.send_and_receive_command("HELLO;", "OK;"):
-                self.disconnect()
-            else:
-                b = True
-        except Exception as e:
-            logger.error(f"TCPClient cannot connect: {e}")
-        return b
+        if self.connected:
+            return True
+        else:
+            try:
+                self.sock = socket.create_connection((self.host, self.port), timeout=1)
+                if not self.send_and_receive_command("HELLO;", "OK;"):
+                    self.disconnect()
+                else:
+                    self.connected = True
+            except Exception as e:
+                logger.error(f"TCPClient cannot connect: {e}")
+        return self.connected
 
     def send(self, data):
         # Send data over TCP connection here
