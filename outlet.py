@@ -97,6 +97,9 @@ class SerialOutlet(Outlet):
         """
         try:
             self.serial.open()
+            self.serial.reset_input_buffer()
+            self.serial.reset_output_buffer()
+
         except Exception as e:
             logger.error(f"SerialOutlet error: {e}")
             return False
@@ -113,6 +116,7 @@ class SerialOutlet(Outlet):
     def send(self, data):
         logger.info(f"{self.name} sending {data}")
         self.serial.write(data)
+        logger.info(f"{self.name} sending {data} - done")
 
     def stop(self):
         self.serial.close()
@@ -141,6 +145,7 @@ class TCPClientOutlet(Outlet):
         # Send data over TCP connection here
         logger.info(f"{self.name} sending {data}")
         self.sock.sendall(data)
+        logger.info(f"{self.name} sending {data} - done")
 
     def disconnect(self):
         # Close TCP connection here
