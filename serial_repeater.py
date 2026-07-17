@@ -135,8 +135,9 @@ class SerialRepeater(Thread):
                             self.state = SerialRepeater.States.CONNECTING
                             logger.info("connect_all started connections...")
                         else:
-                            self.state = SerialRepeater.States.CONNECT_FAIL
                             logger.info("connect_all connect FAIL!")
+                            self.disconnect_all()
+                            self.state =SerialRepeater.States.DISCONNECTING
                     else:
                         logger.info(f"SerialRepeater - expecting 'connect;', discarding input: {msg}")
             elif self.state==SerialRepeater.States.CONNECTING:
@@ -157,8 +158,9 @@ class SerialRepeater(Thread):
 
             elif self.state==SerialRepeater.States.CONNECT_FAIL:
                 # an attempt to connect failed. Stop any threads that started and clear out the contents of self._o
-                for o in self._o:
-                    logger.info(f"outlet {o.name} alive? {str(o.is_alive())} conn? {str(o.connected)}")
+                for outlet in self._o:                    
+                    outlet.join()
+                self._o.clear()
                 self.state = SerialRepeater.States.NOT_CONNECTED
             elif self.state==SerialRepeater.States.CONNECTED:
                 if siq.check():
@@ -173,7 +175,7 @@ class SerialRepeater(Thread):
             elif self.state in [SerialRepeater.States.DISCONNECTING, SerialRepeater.States.QUITTING]:
                 # we are waiting for each of the outlet threads to disconnect and finish
                 #logger.info("disconnecting")
-                for outlet in self._o:
+                for outlet in self._o:                    
                     outlet.join()
                 self._o.clear()
                 if self.state==SerialRepeater.States.DISCONNECTING:
