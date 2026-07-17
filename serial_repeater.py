@@ -8,7 +8,7 @@ from enum import Enum
 import traceback
 from serial_input_queue import SerialInputQueue
 import logging
-
+import PySimpleGUI as sg
 
 A_WINK = 0.1    # Time to sleep
 logger = logging.getLogger(__name__)
@@ -112,10 +112,8 @@ class SerialRepeater(Thread):
         return waitready and len(self._o)==len(self.outlets)
 
     def run(self):
-        print("run()")
         try:
             logger.info("starting repeater...")
-            print("serial")
             self.serial = Serial(self.port, self.baudrate, timeout=self.timeout)
             self.serial.reset_input_buffer()
             self.serial.reset_output_buffer()
@@ -177,6 +175,7 @@ class SerialRepeater(Thread):
                 #logger.info("disconnecting")
                 for outlet in self._o:
                     outlet.join()
+                self._o.clear()
                 if self.state==SerialRepeater.States.DISCONNECTING:
                     self.state = SerialRepeater.States.NOT_CONNECTED
                     logger.info("to NOT_CONNECTED")
@@ -200,39 +199,40 @@ class SerialRepeater(Thread):
 
 
 def main():
+    logging.basicConfig(level=logging.NOTSET)
     parser = ArgumentParser(description='Serial port repeater.', formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('--port', required=True, help='serial port to listen on')
     parser.add_argument('--baudrate', default=9600, type=int, help='baud rate for incoming port. Default=9600')
     parser.add_argument('--outlet', action='append', required=True, help='Specify serial/tcp e.g. serial,COM7 or tcp,host,port')
     parser.add_argument('--gui', action='store_true', help='Get gui and systray too!')
     args = parser.parse_args()
-    print(f"port {args.port}")
-    print(f"outlets: {len(args.outlet)}")
-    print(f"gui? {str(args.gui)}")
     repeater = SerialRepeater(port=args.port, baudrate=args.baudrate, outlets=args.outlet)
-
-
-    layout = [[sg.Button('Start'), sg.Button('Stop')]]
-    window = sg.Window('SHLUB', layout)
-    repeater_started = False
-    while True:
+    repeater.start()
+    # layout = [[sg.Button('Start'), sg.Button('Stop')]]
+    # window = sg.Window('SHLUB', layout)
+    # repeater_started = False
+    # while True:
     
-        event, values = window.read()
+    #     event, values = window.read()
     
-        if event in (sg.WIN_CLOSED, 'Cancel'):
-            break
-        elif event == 'Start': 
-            repeater.start()
-            repeater_started = True
-        elif event == 'Stop':
-            repeater.stop()
+    #     if event in (sg.WIN_CLOSED, 'Cancel'):
+    #         break
+    #     elif event == 'Start': 
+    #         if not repeater_started:
+    #             logger.info("call repeater.start()")
+    #             repeater.start()
+    #             repeater_started = True
+    #     elif event == 'Stop':
+    #         logger.info("call repeater.stop()")
+    #         repeater_started = False
+    #         repeater.stop()
     
-    window.close()
+    # window.close()
 
-    if repeater_started:
-        print("loop done - join repeater")
-        repeater.join()
-
+    # if repeater_started:
+    #     logger.info("loop done - join repeater")
+    #     repeater.join()
+    repeater.join()
 
 
 if __name__ == "__main__":
