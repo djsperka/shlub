@@ -239,3 +239,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# python serial_repeater.py --port COM7 --outlet serial,COM8 --outlet tcp,128.120.140.66,9292
