@@ -4,3 +4,6 @@
 .python-version
 *.code-workspace
 *.bak
+*.spec
+build/
+dist/
