@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256"
+   height="256"
+   viewBox="0 0 67.733332 67.733333"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   sodipodi:docname="icon.svg"
+   inkscape:export-filename="icon.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="true"
+     inkscape:zoom="3.34375"
+     inkscape:cx="128"
+     inkscape:cy="128.14953"
+     inkscape:window-width="1854"
+     inkscape:window-height="1131"
+     inkscape:window-x="66"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="1.0583333"
+       spacingy="1.0583333"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <marker
+       style="overflow:visible"
+       id="marker13"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Wide, heavy arrow"
+       markerWidth="1"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
+         id="path13" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="ArrowWideHeavy"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Wide, heavy arrow"
+       markerWidth="1"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
+         id="path3" />
+    </marker>
+    <linearGradient
+       id="linearGradient6"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#5ec924;stop-opacity:1;"
+         offset="0"
+         id="stop6" />
+      <stop
+         style="stop-color:#7ab6e0;stop-opacity:0.82747602;"
+         offset="1"
+         id="stop7" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient6"
+       id="linearGradient8"
+       x1="5.1611667"
+       y1="34.395832"
+       x2="63.630501"
+       y2="34.395832"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:none;stroke:#070707;stroke-width:0.261"
+       id="rect2"
+       width="8297.333"
+       height="8297.333"
+       x="-3894.6665"
+       y="-4402.6665" />
+    <g
+       id="g6"
+       style="fill:url(#linearGradient8)">
+      <g
+         id="g5"
+         style="fill:url(#linearGradient8)">
+        <rect
+           style="fill:url(#linearGradient8);stroke:#070707;stroke-width:0.261"
+           id="rect3"
+           width="58.208332"
+           height="58.208328"
+           x="5.2916665"
+           y="5.2916665"
+           ry="2.9128883"
+           rx="2.7694705" />
+      </g>
+    </g>
+    <path
+       style="fill:none;stroke:#070707;stroke-width:0.261;marker-end:url(#ArrowWideHeavy)"
+       d="m 31.75,31.749997 c 11.483941,0.53543 18.486912,-2.357761 18.520833,-10.58333"
+       id="path12"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#070707;stroke-width:0.261;marker-end:url(#ArrowWideHeavy)"
+       d="m 31.75,31.681541 c 11.483941,-0.53543 18.486912,2.357761 18.520833,10.58333"
+       id="path14"
+       sodipodi:nodetypes="cc" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="foreground">
+    <circle
+       style="fill:none;stroke:#070707;stroke-width:0.261"
+       id="path8"
+       r="5.2916665"
+       cy="31.749998"
+       cx="26.458332" />
+    <circle
+       style="fill:none;stroke:#070707;stroke-width:0.261"
+       id="path9"
+       cx="50.270832"
+       cy="18.520834"
+       r="2.6458333" />
+    <circle
+       style="fill:none;stroke:#070707;stroke-width:0.261"
+       id="path10"
+       cx="50.270832"
+       cy="44.97916"
+       r="2.6458333" />
+    <path
+       style="fill:none;stroke:#070707;stroke-width:0.272606;marker-end:url(#marker13)"
+       d="m 8.4666663,31.749997 c 12.6999997,0 12.6999997,0 12.6999997,0"
+       id="path11" />
+  </g>
+</svg>
