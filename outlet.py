@@ -89,7 +89,7 @@ class SerialOutlet(Outlet):
             bool: True if connection successful
         """
         try:
-            logger.info(str(type(self.serial)))
+            logger.debug(str(type(self.serial)))
             self.serial.open()
             self.serial.reset_input_buffer()
             self.serial.reset_output_buffer()
@@ -109,9 +109,9 @@ class SerialOutlet(Outlet):
             self.connected = False
 
     def send(self, data):
-        logger.info(f"{self.name} sending {data}")
+        logger.debug(f"{self.name} sending {data}")
         self.serial.write(data)
-        logger.info(f"{self.name} sending {data} - done")
+        logger.debug(f"{self.name} sending {data} - done")
 
     def stop(self):
         self.serial.close()
@@ -140,9 +140,9 @@ class TCPClientOutlet(Outlet):
 
     def send(self, data):
         # Send data over TCP connection here
-        logger.info(f"{self.name} sending {data}")
+        logger.debug(f"{self.name} sending {data}")
         self.sock.sendall(data)
-        logger.info(f"{self.name} sending {data} - done")
+        logger.debug(f"{self.name} sending {data} - done")
 
     def disconnect(self):
         # Close TCP connection here
@@ -155,7 +155,7 @@ class TCPClientOutlet(Outlet):
     def send_and_receive_command(self, command: str, expected_response: str) -> bool:
         self.send(command.encode())
         response = self.sock.recv(1024).decode().strip()
-        logger.info(f"Sent: {command!r} -> Received: {response!r}")
+        logger.debug(f"Sent: {command!r} -> Received: {response!r}")
         if response != expected_response:
             logger.error(f"Unexpected response: {response!r}, expected: {expected_response!r}")
             return False

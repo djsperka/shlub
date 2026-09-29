@@ -70,7 +70,7 @@ class SerialRepeater(Thread):
         Returns:
             bool: True if all outlets created and connected successfully.
         """
-        logger.info("connect_all()")
+        logger.debug("connect_all()")
 
         # new events
         self.connect_event = Event()
@@ -96,7 +96,7 @@ class SerialRepeater(Thread):
             return False
 
         # Now start each thread and set connect event
-        logger.info("Starting threads and setting connect event...")
+        logger.info("Starting outlet threads...")
         for o in self._o:
             o.start()
         self.connect_event.set()
@@ -106,7 +106,7 @@ class SerialRepeater(Thread):
         sleep(1)
         waitready = True
         for outlet in self._o:
-            logger.info(f"connect_all: {outlet.name} alive {str(outlet.is_alive())} connected {str(outlet.connected)}")
+            logger.debug(f"connect_all: {outlet.name} alive {str(outlet.is_alive())} connected {str(outlet.connected)}")
             if not outlet.connected:
                 waitready = False
         return waitready and len(self._o)==len(self.outlets)
@@ -133,13 +133,13 @@ class SerialRepeater(Thread):
                     if msg.lower() == b'connect;':
                         if self.connect_all():
                             self.state = SerialRepeater.States.CONNECTING
-                            logger.info("connect_all started connections...")
+                            logger.debug("connect_all started connections...")
                         else:
-                            logger.info("connect_all connect FAIL!")
+                            logger.error("connect_all connect FAIL!")
                             self.disconnect_all()
                             self.state =SerialRepeater.States.DISCONNECTING
                     else:
-                        logger.info(f"SerialRepeater - expecting 'connect;', discarding input: {msg}")
+                        logger.warning(f"SerialRepeater - expecting 'connect;', discarding input: {msg}")
             elif self.state==SerialRepeater.States.CONNECTING:
                 # Source - https://stackoverflow.com/a/10666320
                 # Posted by Gareth Latty, modified by community. See post 'Timeline' for change history
@@ -166,15 +166,15 @@ class SerialRepeater(Thread):
                 if siq.check():
                     msg = siq.next()
                     if msg.lower() == b'disconnect;':
-                        logger.info("repeater: disconnect; received, disconnecting...")
+                        logger.info("disconnecting...")
                         self.disconnect_all()
                         self.state = SerialRepeater.States.DISCONNECTING
                     else:
+                        logger.info(f"send: {msg.decode()}")
                         for outlet in self._o:
                             outlet.mailbox.put(msg)
             elif self.state in [SerialRepeater.States.DISCONNECTING, SerialRepeater.States.QUITTING]:
                 # we are waiting for each of the outlet threads to disconnect and finish
-                #logger.info("disconnecting")
                 for outlet in self._o:                    
                     outlet.join()
                 self._o.clear()
@@ -200,45 +200,21 @@ class SerialRepeater(Thread):
         self.state = SerialRepeater.States.QUITTING
 
 
-def main():
-    logging.basicConfig(level=logging.NOTSET)
-    parser = ArgumentParser(description='Serial port repeater.', formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--port', required=True, help='serial port to listen on')
-    parser.add_argument('--baudrate', default=9600, type=int, help='baud rate for incoming port. Default=9600')
-    parser.add_argument('--outlet', action='append', required=True, help='Specify serial/tcp e.g. serial,COM7 or tcp,host,port')
-    parser.add_argument('--gui', action='store_true', help='Get gui and systray too!')
-    args = parser.parse_args()
-    repeater = SerialRepeater(port=args.port, baudrate=args.baudrate, outlets=args.outlet)
-    repeater.start()
-    # layout = [[sg.Button('Start'), sg.Button('Stop')]]
-    # window = sg.Window('SHLUB', layout)
-    # repeater_started = False
-    # while True:
-    
-    #     event, values = window.read()
-    
-    #     if event in (sg.WIN_CLOSED, 'Cancel'):
-    #         break
-    #     elif event == 'Start': 
-    #         if not repeater_started:
-    #             logger.info("call repeater.start()")
-    #             repeater.start()
-    #             repeater_started = True
-    #     elif event == 'Stop':
-    #         logger.info("call repeater.stop()")
-    #         repeater_started = False
-    #         repeater.stop()
-    
-    # window.close()
-
-    # if repeater_started:
-    #     logger.info("loop done - join repeater")
-    #     repeater.join()
-    repeater.join()
+# def main():
+#     logging.basicConfig(level=logging.NOTSET)
+#     parser = ArgumentParser(description='Serial port repeater.', formatter_class=ArgumentDefaultsHelpFormatter)
+#     parser.add_argument('--port', required=True, help='serial port to listen on')
+#     parser.add_argument('--baudrate', default=9600, type=int, help='baud rate for incoming port. Default=9600')
+#     parser.add_argument('--outlet', action='append', required=True, help='Specify serial/tcp e.g. serial,COM7 or tcp,host,port')
+#     parser.add_argument('--gui', action='store_true', help='Get gui and systray too!')
+#     args = parser.parse_args()
+#     repeater = SerialRepeater(port=args.port, baudrate=args.baudrate, outlets=args.outlet)
+#     repeater.start()
+#     repeater.join()
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
 
 # python serial_repeater.py --port COM7 --outlet serial,COM8 --outlet tcp,128.120.140.66,9292
