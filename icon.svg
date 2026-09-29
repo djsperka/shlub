@@ -52,44 +52,7 @@
        visible="true" />
   </sodipodi:namedview>
   <defs
-     id="defs1">
-    <marker
-       style="overflow:visible"
-       id="marker13"
-       refX="0"
-       refY="0"
-       orient="auto-start-reverse"
-       inkscape:stockid="Wide, heavy arrow"
-       markerWidth="1"
-       markerHeight="1"
-       viewBox="0 0 1 1"
-       inkscape:isstock="true"
-       inkscape:collect="always"
-       preserveAspectRatio="xMidYMid">
-      <path
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
-         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
-         id="path13" />
-    </marker>
-    <marker
-       style="overflow:visible"
-       id="ArrowWideHeavy"
-       refX="0"
-       refY="0"
-       orient="auto-start-reverse"
-       inkscape:stockid="Wide, heavy arrow"
-       markerWidth="1"
-       markerHeight="1"
-       viewBox="0 0 1 1"
-       inkscape:isstock="true"
-       inkscape:collect="always"
-       preserveAspectRatio="xMidYMid">
-      <path
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
-         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
-         id="path3" />
-    </marker>
-  </defs>
+     id="defs1" />
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
@@ -118,42 +81,49 @@
            rx="2.7694705" />
       </g>
     </g>
-    <path
-       style="fill:none;stroke:#ffffff;stroke-width:0.261;marker-end:url(#ArrowWideHeavy)"
-       d="m 31.75,31.749997 c 11.483941,0.53543 18.486912,-2.357761 18.520833,-10.58333"
-       id="path12"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;stroke:#ffffff;stroke-width:0.261;marker-end:url(#ArrowWideHeavy)"
-       d="m 31.75,31.681541 c 11.483941,-0.53543 18.486912,2.357761 18.520833,10.58333"
-       id="path14"
-       sodipodi:nodetypes="cc" />
   </g>
   <g
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="foreground">
     <circle
-       style="fill:none;stroke:#ffffff;stroke-width:0.261"
-       id="path8"
-       r="5.2916665"
-       cy="31.749998"
-       cx="26.458332" />
-    <circle
-       style="fill:none;stroke:#ffffff;stroke-width:0.261"
+       style="fill:none;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
        id="path9"
        cx="50.270832"
-       cy="18.520834"
+       cy="26.458342"
        r="2.6458333" />
     <circle
-       style="fill:none;stroke:#ffffff;stroke-width:0.261"
+       style="fill:none;stroke:#ffffff;stroke-width:1.05833;stroke-dasharray:none"
+       id="path9-3"
+       cx="10.583305"
+       cy="31.750011"
+       r="2.6458333" />
+    <circle
+       style="fill:none;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
        id="path10"
        cx="50.270832"
-       cy="44.97916"
+       cy="37.041653"
        r="2.6458333" />
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.317212"
+       id="rect1"
+       width="10.527122"
+       height="31.432787"
+       x="21.194773"
+       y="16.033606"
+       rx="1.0527132"
+       ry="1.5716388" />
     <path
-       style="fill:#ffffff;stroke:#ffffff;stroke-width:0.272606;marker-end:url(#marker13)"
-       d="m 8.4666663,31.749997 c 12.6999997,0 12.6999997,0 12.6999997,0"
-       id="path11" />
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.776604;stroke-dasharray:none"
+       d="m 13.758333,31.749997 c 7.408333,0 7.408333,0 7.408333,0"
+       id="path1" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       d="m 31.75,26.458332 c 15.874997,0 15.874997,0 15.874997,0"
+       id="path2" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       d="m 31.75,37.041664 c 15.874997,0 15.874997,0 15.874997,0 v 0"
+       id="path3" />
   </g>
 </svg>
