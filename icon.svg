@@ -87,19 +87,19 @@
      id="layer2"
      inkscape:label="foreground">
     <circle
-       style="fill:none;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       style="fill:none;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        id="path9"
        cx="50.270832"
        cy="26.458342"
        r="2.6458333" />
     <circle
-       style="fill:none;stroke:#ffffff;stroke-width:1.05833;stroke-dasharray:none"
+       style="fill:none;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        id="path9-3"
        cx="10.583305"
        cy="31.750011"
        r="2.6458333" />
     <circle
-       style="fill:none;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       style="fill:none;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        id="path10"
        cx="50.270832"
        cy="37.041653"
@@ -114,15 +114,15 @@
        rx="1.0527132"
        ry="1.5716388" />
     <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.776604;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        d="m 13.758333,31.749997 c 7.408333,0 7.408333,0 7.408333,0"
        id="path1" />
     <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        d="m 31.75,26.458332 c 15.874997,0 15.874997,0 15.874997,0"
        id="path2" />
     <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:1.05833333;stroke-dasharray:none"
+       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:2.11666667;stroke-dasharray:none"
        d="m 31.75,37.041664 c 15.874997,0 15.874997,0 15.874997,0 v 0"
        id="path3" />
   </g>
